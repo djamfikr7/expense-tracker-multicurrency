@@ -10,6 +10,7 @@ class Transaction {
   final String paymentMethod;
   final bool isRecurring;
   final String? frequency; // 'daily', 'weekly', 'monthly', 'yearly'
+  final String currency;
 
   Transaction({
     required this.id,
@@ -23,6 +24,7 @@ class Transaction {
     this.paymentMethod = 'cash',
     this.isRecurring = false,
     this.frequency,
+    this.currency = 'USD',
   });
 
   Map<String, dynamic> toJson() {
@@ -38,6 +40,7 @@ class Transaction {
       'paymentMethod': paymentMethod,
       'isRecurring': isRecurring,
       'frequency': frequency,
+      'currency': currency,
     };
   }
 
@@ -54,6 +57,7 @@ class Transaction {
       paymentMethod: json['paymentMethod'] ?? 'cash',
       isRecurring: json['isRecurring'] ?? false,
       frequency: json['frequency'],
+      currency: json['currency'] ?? 'USD',
     );
   }
 }

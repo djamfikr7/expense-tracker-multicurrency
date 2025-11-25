@@ -22,6 +22,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<models.Transaction> _transactions = [];
   List<models.Budget> _budgets = [];
   String _currency = 'USD';
+  Map<String, Map<String, dynamic>> _rates = {};
+  bool _useParallel = false;
 
   @override
   void initState() {
@@ -33,11 +35,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final transactions = await _storageService.getTransactions();
     final budgets = await _storageService.getBudgets();
     final currency = await _storageService.getCurrency();
+    final rawRates = await _storageService.getCurrencyRates();
+    final rates = rawRates.map(
+      (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
+    );
+    final useParallel = await _storageService.getUseParallelRates();
 
     setState(() {
       _transactions = transactions;
       _budgets = budgets;
       _currency = currency;
+      _rates = rates;
+      _useParallel = useParallel;
     });
   }
 
@@ -63,9 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _updateCurrency(String currency) async {
     await _storageService.setCurrency(currency);
-    setState(() {
-      _currency = currency;
-    });
+    await _loadData(); // Reload to ensure everything updates
   }
 
   @override
@@ -77,10 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
         transactions: _transactions,
         budgets: _budgets,
         currency: _currency,
+        rates: _rates,
+        useParallel: _useParallel,
       ),
       TransactionsTab(
         transactions: _transactions,
         currency: _currency,
+        rates: _rates,
+        useParallel: _useParallel,
         onDelete: _deleteTransaction,
         onUpdate: _updateTransaction,
       ),
@@ -137,7 +148,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddTransactionScreen(),
+                    builder: (context) =>
+                        AddTransactionScreen(currency: _currency),
                   ),
                 );
 

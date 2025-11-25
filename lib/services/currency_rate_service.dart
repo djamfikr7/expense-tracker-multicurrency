@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../models/currency_rate.dart';
 
 class CurrencyRateService {
   // Free API endpoints for exchange rates
@@ -152,5 +153,48 @@ class CurrencyRateService {
     double varianceScore = (1.0 - rateVariance).clamp(0.0, 1.0);
 
     return (sourceScore * 0.6 + varianceScore * 0.4);
+  }
+
+  /// Convert amount from one currency to another
+  static double convertAmount({
+    required double amount,
+    required String fromCurrency,
+    required String toCurrency,
+    required Map<String, Map<String, dynamic>> rates,
+    required bool useParallel,
+  }) {
+    if (fromCurrency == toCurrency) return amount;
+
+    // Helper to get rate in USD
+    double getRateInUSD(String code) {
+      if (code == 'USD') return 1.0;
+
+      // Check custom rates first
+      if (rates.containsKey(code)) {
+        final rateData = rates[code]!;
+        if (useParallel) {
+          return (rateData['parallel'] ?? 0.0).toDouble();
+        } else {
+          return (rateData['official'] ?? 0.0).toDouble();
+        }
+      }
+
+      // Fallback to default rates
+      try {
+        final currency = CurrencyData.defaultCurrencies.firstWhere(
+          (c) => c.code == code,
+        );
+        return useParallel ? currency.parallelRate : currency.officialRate;
+      } catch (e) {
+        return 1.0; // Default to 1.0 if not found
+      }
+    }
+
+    final fromRateUSD = getRateInUSD(fromCurrency);
+    final toRateUSD = getRateInUSD(toCurrency);
+
+    if (fromRateUSD == 0) return amount;
+
+    return (amount / fromRateUSD) * toRateUSD;
   }
 }

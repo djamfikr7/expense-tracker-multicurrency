@@ -72,7 +72,7 @@ class _CurrencyRatesScreenState extends State<CurrencyRatesScreen> {
       }
     }
 
-    _baseRate = rate ?? 1.0;
+    _baseRate = rate;
   }
 
   Future<void> _saveRateModeToggle(bool value) async {

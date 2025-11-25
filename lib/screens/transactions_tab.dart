@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart' as models;
 import '../services/app_localizations.dart';
+import '../services/currency_rate_service.dart';
 import '../data/categories.dart';
 
 class TransactionsTab extends StatefulWidget {
   final List<models.Transaction> transactions;
   final String currency;
+  final Map<String, Map<String, dynamic>> rates;
+  final bool useParallel;
   final Function(String) onDelete;
   final Function(models.Transaction) onUpdate;
 
@@ -14,6 +17,8 @@ class TransactionsTab extends StatefulWidget {
     super.key,
     required this.transactions,
     required this.currency,
+    required this.rates,
+    required this.useParallel,
     required this.onDelete,
     required this.onUpdate,
   });
@@ -156,6 +161,8 @@ class _TransactionsTabState extends State<TransactionsTab> {
                       return _TransactionCard(
                         transaction: transaction,
                         currency: widget.currency,
+                        rates: widget.rates,
+                        useParallel: widget.useParallel,
                         onDelete: () => widget.onDelete(transaction.id),
                       );
                     },
@@ -170,11 +177,15 @@ class _TransactionsTabState extends State<TransactionsTab> {
 class _TransactionCard extends StatelessWidget {
   final models.Transaction transaction;
   final String currency;
+  final Map<String, Map<String, dynamic>> rates;
+  final bool useParallel;
   final VoidCallback onDelete;
 
   const _TransactionCard({
     required this.transaction,
     required this.currency,
+    required this.rates,
+    required this.useParallel,
     required this.onDelete,
   });
 
@@ -188,6 +199,14 @@ class _TransactionCard extends StatelessWidget {
     );
     final formatter = NumberFormat.currency(
       symbol: _getCurrencySymbol(currency),
+    );
+
+    final convertedAmount = CurrencyRateService.convertAmount(
+      amount: transaction.amount,
+      fromCurrency: transaction.currency,
+      toCurrency: currency,
+      rates: rates,
+      useParallel: useParallel,
     );
 
     return Card(
@@ -249,7 +268,7 @@ class _TransactionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${isIncome ? '+' : '-'}${formatter.format(transaction.amount)}',
+                    '${isIncome ? '+' : '-'}${formatter.format(convertedAmount)}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: color,

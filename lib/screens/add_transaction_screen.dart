@@ -5,7 +5,8 @@ import '../data/categories.dart';
 import 'calculator_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final String currency;
+  const AddTransactionScreen({super.key, required this.currency});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -234,6 +235,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       date: _date,
                       description: _description,
                       paymentMethod: _paymentMethod,
+                      currency: widget.currency,
                     );
 
                     Navigator.pop(context, transaction);

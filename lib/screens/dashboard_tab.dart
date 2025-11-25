@@ -3,18 +3,23 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart' as models;
 import '../services/app_localizations.dart';
+import '../services/currency_rate_service.dart';
 import '../data/categories.dart';
 
 class DashboardTab extends StatelessWidget {
   final List<models.Transaction> transactions;
   final List<models.Budget> budgets;
   final String currency;
+  final Map<String, Map<String, dynamic>> rates;
+  final bool useParallel;
 
   const DashboardTab({
     super.key,
     required this.transactions,
     required this.budgets,
     required this.currency,
+    required this.rates,
+    required this.useParallel,
   });
 
   @override
@@ -28,15 +33,61 @@ class DashboardTab extends StatelessWidget {
       return t.date.year == now.year && t.date.month == now.month;
     }).toList();
 
-    final totalIncome = monthTransactions
-        .where((t) => t.type == 'income')
-        .fold<double>(0, (sum, t) => sum + t.amount);
+    double calculateTotal(String type) {
+      return monthTransactions.where((t) => t.type == type).fold<double>(0, (
+        sum,
+        t,
+      ) {
+        final convertedAmount = CurrencyRateService.convertAmount(
+          amount: t.amount,
+          fromCurrency: t.currency,
+          toCurrency: currency,
+          rates: rates,
+          useParallel: useParallel,
+        );
+        return sum + convertedAmount;
+      });
+    }
 
-    final totalExpenses = monthTransactions
-        .where((t) => t.type == 'expense')
-        .fold<double>(0, (sum, t) => sum + t.amount);
-
+    final totalIncome = calculateTotal('income');
+    final totalExpenses = calculateTotal('expense');
     final netBalance = totalIncome - totalExpenses;
+
+    // DEBUG: Get first transaction details
+    String debugInfo = 'Debug Info:\n';
+    debugInfo += 'App Currency: $currency\n';
+    debugInfo += 'Use Parallel: $useParallel\n';
+    if (monthTransactions.isNotEmpty) {
+      final t = monthTransactions.first;
+      debugInfo += 'Trans 1: ${t.amount} ${t.currency}\n';
+      final fromRate = CurrencyRateService.convertAmount(
+        amount: 1,
+        fromCurrency: 'USD',
+        toCurrency: t.currency,
+        rates: rates,
+        useParallel: useParallel,
+      );
+      final toRate = CurrencyRateService.convertAmount(
+        amount: 1,
+        fromCurrency: 'USD',
+        toCurrency: currency,
+        rates: rates,
+        useParallel: useParallel,
+      );
+      debugInfo += 'Rate ${t.currency}/USD: $fromRate\n';
+      debugInfo += 'Rate $currency/USD: $toRate\n';
+
+      final converted = CurrencyRateService.convertAmount(
+        amount: t.amount,
+        fromCurrency: t.currency,
+        toCurrency: currency,
+        rates: rates,
+        useParallel: useParallel,
+      );
+      debugInfo += 'Converted: $converted';
+    } else {
+      debugInfo += 'No transactions this month';
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(localizations.translate('dashboard'))),
@@ -45,6 +96,18 @@ class DashboardTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // DEBUG WIDGET
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.black12,
+              width: double.infinity,
+              child: Text(
+                debugInfo,
+                style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+              ),
+            ),
+            const SizedBox(height: 12),
+
             // Summary Cards
             _SummaryCard(
               title: localizations.translate('totalIncome'),
@@ -124,6 +187,8 @@ class DashboardTab extends StatelessWidget {
                     .where((t) => t.type == 'expense')
                     .toList(),
                 currency: currency,
+                rates: rates,
+                useParallel: useParallel,
               ),
             ],
           ],
@@ -214,8 +279,15 @@ class _SummaryCard extends StatelessWidget {
 class _ExpenseBreakdown extends StatelessWidget {
   final List<models.Transaction> transactions;
   final String currency;
+  final Map<String, Map<String, dynamic>> rates;
+  final bool useParallel;
 
-  const _ExpenseBreakdown({required this.transactions, required this.currency});
+  const _ExpenseBreakdown({
+    required this.transactions,
+    required this.currency,
+    required this.rates,
+    required this.useParallel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -223,8 +295,15 @@ class _ExpenseBreakdown extends StatelessWidget {
     final Map<String, double> categoryTotals = {};
 
     for (final transaction in transactions) {
+      final convertedAmount = CurrencyRateService.convertAmount(
+        amount: transaction.amount,
+        fromCurrency: transaction.currency,
+        toCurrency: currency,
+        rates: rates,
+        useParallel: useParallel,
+      );
       categoryTotals[transaction.categoryId] =
-          (categoryTotals[transaction.categoryId] ?? 0) + transaction.amount;
+          (categoryTotals[transaction.categoryId] ?? 0) + convertedAmount;
     }
 
     final total = categoryTotals.values.fold<double>(
