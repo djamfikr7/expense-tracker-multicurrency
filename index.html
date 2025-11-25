@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Modern expense and income tracker with multi-currency support, budgets, and beautiful data visualization">
+    <meta name="keywords" content="expense tracker, income tracker, budget, finance, money management">
+    <title>Expense Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1 class="logo" data-i18n="appTitle">Expense Tracker</h1>
+            <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="container">
+            <button class="nav-btn active" data-page="dashboard" data-i18n="dashboard">Dashboard</button>
+            <button class="nav-btn" data-page="transactions" data-i18n="transactions">Transactions</button>
+            <button class="nav-btn" data-page="budgets" data-i18n="budgets">Budgets</button>
+            <button class="nav-btn" data-page="settings" data-i18n="settings">Settings</button>
+        </div>
+    </nav>
+
+    <main class="main">
+        <!-- Dashboard Page -->
+        <section class="page active" id="dashboard-page">
+            <div class="container">
+                <!-- Summary Cards -->
+                <div class="summary-grid">
+                    <div class="summary-card income-card">
+                        <div class="summary-icon">💰</div>
+                        <div class="summary-content">
+                            <h3 data-i18n="totalIncome">Total Income</h3>
+                            <p class="summary-amount" id="totalIncome">$0.00</p>
+                            <span class="summary-period" data-i18n="thisMonth">This Month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card expense-card">
+                        <div class="summary-icon">💸</div>
+                        <div class="summary-content">
+                            <h3 data-i18n="totalExpenses">Total Expenses</h3>
+                            <p class="summary-amount" id="totalExpenses">$0.00</p>
+                            <span class="summary-period" data-i18n="thisMonth">This Month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-card balance-card">
+                        <div class="summary-icon">📊</div>
+                        <div class="summary-content">
+                            <h3 data-i18n="netBalance">Net Balance</h3>
+                            <p class="summary-amount" id="netBalance">$0.00</p>
+                            <span class="summary-period" data-i18n="thisMonth">This Month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3 data-i18n="incomeVsExpense">Income vs Expense</h3>
+                        <canvas id="incomeExpenseChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <h3 data-i18n="expenseBreakdown">Expense Breakdown</h3>
+                        <canvas id="expenseBreakdownChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-card chart-card-wide">
+                        <h3 data-i18n="monthlyTrend">Monthly Trend</h3>
+                        <canvas id="monthlyTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transactions Page -->
+        <section class="page" id="transactions-page">
+            <div class="container">
+                <!-- Filters -->
+                <div class="filters-section">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" data-i18n-placeholder="search" placeholder="Search...">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <select id="typeFilter" class="filter-select">
+                            <option value="all" data-i18n="all">All</option>
+                            <option value="income" data-i18n="income">Income</option>
+                            <option value="expense" data-i18n="expense">Expense</option>
+                        </select>
+                        
+                        <select id="categoryFilter" class="filter-select">
+                            <option value="all" data-i18n="all">All</option>
+                        </select>
+                        
+                        <select id="sortFilter" class="filter-select">
+                            <option value="newest" data-i18n="newest">Newest First</option>
+                            <option value="oldest" data-i18n="oldest">Oldest First</option>
+                            <option value="highest" data-i18n="highestAmount">Highest Amount</option>
+                            <option value="lowest" data-i18n="lowestAmount">Lowest Amount</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Transactions List -->
+                <div class="transactions-list" id="transactionsList">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p data-i18n="noTransactions">No transactions yet</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Budgets Page -->
+        <section class="page" id="budgets-page">
+            <div class="container">
+                <div class="budgets-header">
+                    <h2 data-i18n="monthlyBudget">Monthly Budget</h2>
+                    <button class="btn btn-primary" id="addBudgetBtn" data-i18n="setBudget">Set Budget</button>
+                </div>
+                
+                <div class="budgets-list" id="budgetsList">
+                    <div class="empty-state">
+                        <div class="empty-icon">💰</div>
+                        <p>No budgets set</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Page -->
+        <section class="page" id="settings-page">
+            <div class="container">
+                <div class="settings-section">
+                    <h2 data-i18n="language">Language</h2>
+                    <select id="languageSelect" class="settings-select">
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                        <option value="ar">العربية</option>
+                        <option value="zh">中文</option>
+                    </select>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 data-i18n="baseCurrency">Base Currency</h2>
+                    <select id="currencySelect" class="settings-select">
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="JPY">JPY - Japanese Yen</option>
+                        <option value="CNY">CNY - Chinese Yuan</option>
+                        <option value="SAR">SAR - Saudi Riyal</option>
+                        <option value="AED">AED - UAE Dirham</option>
+                        <option value="CAD">CAD - Canadian Dollar</option>
+                        <option value="AUD">AUD - Australian Dollar</option>
+                    </select>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 data-i18n="customRates">Custom Exchange Rates</h2>
+                    <button class="btn btn-secondary" id="customRatesBtn">Manage Rates</button>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 data-i18n="categories">Categories</h2>
+                    <button class="btn btn-secondary" id="manageCategoriesBtn">Manage Categories</button>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 data-i18n="export">Export Data</h2>
+                    <div class="export-buttons">
+                        <button class="btn btn-secondary" id="exportCSVBtn" data-i18n="exportCSV">Export CSV</button>
+                        <button class="btn btn-secondary" id="exportJSONBtn" data-i18n="exportJSON">Export JSON</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab" id="addTransactionFab" aria-label="Add transaction">
+        <span class="fab-icon">+</span>
+    </button>
+
+    <!-- Transaction Modal -->
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle" data-i18n="addTransaction">Add Transaction</h2>
+                <button class="modal-close" id="closeTransactionModal">&times;</button>
+            </div>
+            
+            <form id="transactionForm" class="modal-form">
+                <div class="form-group">
+                    <label data-i18n="type">Type</label>
+                    <div class="type-toggle">
+                        <button type="button" class="type-btn active" data-type="expense" data-i18n="expense">Expense</button>
+                        <button type="button" class="type-btn" data-type="income" data-i18n="income">Income</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transactionAmount" data-i18n="amount">Amount</label>
+                    <input type="number" id="transactionAmount" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transactionCategory" data-i18n="category">Category</label>
+                    <select id="transactionCategory" required>
+                        <option value="">Select category</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transactionDate" data-i18n="date">Date</label>
+                    <input type="date" id="transactionDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="transactionDescription" data-i18n="description">Description</label>
+                    <input type="text" id="transactionDescription">
+                </div>
+                
+                <div class="form-group">
+                    <label for="transactionPayment" data-i18n="paymentMethod">Payment Method</label>
+                    <select id="transactionPayment">
+                        <option value="cash" data-i18n="cash">Cash</option>
+                        <option value="card" data-i18n="card">Card</option>
+                        <option value="bankTransfer" data-i18n="bankTransfer">Bank Transfer</option>
+                        <option value="digitalWallet" data-i18n="digitalWallet">Digital Wallet</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="transactionRecurring">
+                        <span data-i18n="recurring">Recurring</span>
+                    </label>
+                </div>
+                
+                <div class="form-group recurring-options" id="recurringOptions" style="display: none;">
+                    <label for="transactionFrequency" data-i18n="frequency">Frequency</label>
+                    <select id="transactionFrequency">
+                        <option value="daily" data-i18n="daily">Daily</option>
+                        <option value="weekly" data-i18n="weekly">Weekly</option>
+                        <option value="monthly" data-i18n="monthly">Monthly</option>
+                        <option value="yearly" data-i18n="yearly">Yearly</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelTransactionBtn" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div class="modal" id="budgetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 data-i18n="setBudget">Set Budget</h2>
+                <button class="modal-close" id="closeBudgetModal">&times;</button>
+            </div>
+            
+            <form id="budgetForm" class="modal-form">
+                <div class="form-group">
+                    <label for="budgetCategory" data-i18n="category">Category</label>
+                    <select id="budgetCategory" required>
+                        <option value="">Select category</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="budgetAmount" data-i18n="budgetLimit">Budget Limit</label>
+                    <input type="number" id="budgetAmount" step="0.01" min="0" required>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBudgetBtn" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Scripts -->
+    <script src="i18n.js"></script>
+    <script src="app.js"></script>
+    <script src="charts.js"></script>
+</body>
+</html>
