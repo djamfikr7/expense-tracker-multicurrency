@@ -13,6 +13,12 @@ class Transaction {
   final String currency;
   final String? projectId; // Optional project assignment
 
+  // Receipt/OCR fields
+  final List<String> receiptPhotoPaths; // List of receipt image paths
+  final String? scannedReceiptId; // FK to ScannedReceipt
+  final String? paymentProofStatus; // none, pending, verified, etc.
+  final Map<String, dynamic>? ocrRawData; // Raw OCR extraction results
+
   Transaction({
     required this.id,
     required this.type,
@@ -26,7 +32,11 @@ class Transaction {
     this.isRecurring = false,
     this.frequency,
     this.currency = 'USD',
-    this.projectId, // Optional
+    this.projectId,
+    this.receiptPhotoPaths = const [],
+    this.scannedReceiptId,
+    this.paymentProofStatus,
+    this.ocrRawData,
   });
 
   Map<String, dynamic> toJson() {
@@ -44,6 +54,10 @@ class Transaction {
       'frequency': frequency,
       'currency': currency,
       'projectId': projectId,
+      'receiptPhotoPaths': receiptPhotoPaths,
+      'scannedReceiptId': scannedReceiptId,
+      'paymentProofStatus': paymentProofStatus,
+      'ocrRawData': ocrRawData,
     };
   }
 
@@ -61,8 +75,13 @@ class Transaction {
       isRecurring: json['isRecurring'] ?? false,
       frequency: json['frequency'],
       currency: json['currency'] ?? 'USD',
-      projectId:
-          json['projectId'], // Backward compatible - will be null for old data
+      projectId: json['projectId'],
+      receiptPhotoPaths: json['receiptPhotoPaths'] != null
+          ? List<String>.from(json['receiptPhotoPaths'])
+          : [],
+      scannedReceiptId: json['scannedReceiptId'],
+      paymentProofStatus: json['paymentProofStatus'],
+      ocrRawData: json['ocrRawData'],
     );
   }
 }
