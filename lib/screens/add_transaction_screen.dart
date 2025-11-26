@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/transaction.dart' as models;
+import '../models/project.dart';
 import '../services/app_localizations.dart';
+import '../services/storage_service.dart';
 import '../data/categories.dart';
 import 'calculator_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final String currency;
-  const AddTransactionScreen({super.key, required this.currency});
+  final String? initialProjectId;
+
+  const AddTransactionScreen({
+    super.key,
+    required this.currency,
+    this.initialProjectId,
+  });
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -14,12 +22,36 @@ class AddTransactionScreen extends StatefulWidget {
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
   String _type = 'expense';
   double? _amount;
   String? _categoryId;
   DateTime _date = DateTime.now();
   String? _description;
   String _paymentMethod = 'cash';
+  String? _projectId;
+  List<Project> _availableProjects = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _projectId = widget.initialProjectId;
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    final storage = StorageService();
+    final projects = await storage.getProjects();
+    setState(() {
+      _availableProjects = projects.where((p) => p.isActive).toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,15 +111,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       if (result != null && result is double) {
                         setState(() {
                           _amount = result;
+                          _amountController.text = result.toString();
                         });
                       }
                     },
                   ),
                 ),
                 keyboardType: TextInputType.number,
-                controller: TextEditingController(
-                  text: _amount?.toString() ?? '',
-                ),
+                controller: _amountController,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter amount';
@@ -139,6 +170,44 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               const SizedBox(height: 16),
+
+              // Project selector (optional)
+              if (_availableProjects.isNotEmpty)
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Project (Optional)',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.folder),
+                    suffixIcon: _projectId != null
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() => _projectId = null);
+                            },
+                          )
+                        : null,
+                  ),
+                  value: _projectId,
+                  items: _availableProjects.map((project) {
+                    return DropdownMenuItem(
+                      value: project.id,
+                      child: Row(
+                        children: [
+                          Text(
+                            project.icon,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(project.name)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _projectId = value);
+                  },
+                ),
+              if (_availableProjects.isNotEmpty) const SizedBox(height: 16),
 
               // Date
               InkWell(
@@ -236,6 +305,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       description: _description,
                       paymentMethod: _paymentMethod,
                       currency: widget.currency,
+                      projectId: _projectId,
                     );
 
                     Navigator.pop(context, transaction);

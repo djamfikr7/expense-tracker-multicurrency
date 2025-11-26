@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transaction.dart';
+import '../models/project.dart';
 
 class StorageService {
   static const String _transactionsKey = 'transactions';
@@ -122,5 +123,107 @@ class StorageService {
   Future<void> setUseParallelRates(bool useParallel) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_rateModeKey, useParallel);
+  }
+
+  // Projects
+  static const String _projectsKey = 'projects';
+
+  Future<List<Project>> getProjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? projectsJson = prefs.getString(_projectsKey);
+
+    if (projectsJson == null) return [];
+
+    final List<dynamic> decoded = jsonDecode(projectsJson);
+    return decoded.map((json) => Project.fromJson(json)).toList();
+  }
+
+  Future<void> saveProjects(List<Project> projects) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(projects.map((p) => p.toJson()).toList());
+    await prefs.setString(_projectsKey, encoded);
+  }
+
+  Future<void> addProject(Project project) async {
+    final projects = await getProjects();
+    projects.add(project);
+    await saveProjects(projects);
+  }
+
+  Future<void> updateProject(Project project) async {
+    final projects = await getProjects();
+    final index = projects.indexWhere((p) => p.id == project.id);
+    if (index != -1) {
+      projects[index] = project;
+      await saveProjects(projects);
+    }
+  }
+
+  Future<void> deleteProject(String id) async {
+    final projects = await getProjects();
+    projects.removeWhere((p) => p.id == id);
+    await saveProjects(projects);
+
+    // Optional: Remove project reference from transactions
+    final transactions = await getTransactions();
+    final updated = transactions.map((t) {
+      if (t.projectId == id) {
+        // Create new transaction without project
+        return Transaction(
+          id: t.id,
+          type: t.type,
+          amount: t.amount,
+          categoryId: t.categoryId,
+          category: t.category,
+          icon: t.icon,
+          date: t.date,
+          description: t.description,
+          paymentMethod: t.paymentMethod,
+          isRecurring: t.isRecurring,
+          frequency: t.frequency,
+          currency: t.currency,
+          projectId: null, // Remove project reference
+        );
+      }
+      return t;
+    }).toList();
+    await saveTransactions(updated);
+  }
+
+  // Project query methods
+  Future<List<Transaction>> getProjectTransactions(String projectId) async {
+    final transactions = await getTransactions();
+    return transactions.where((t) => t.projectId == projectId).toList();
+  }
+
+  Future<Map<String, double>> getProjectStats(String projectId) async {
+    final transactions = await getProjectTransactions(projectId);
+
+    double totalIncome = 0;
+    double totalExpenses = 0;
+
+    for (final transaction in transactions) {
+      if (transaction.type == 'income') {
+        totalIncome += transaction.amount;
+      } else {
+        totalExpenses += transaction.amount;
+      }
+    }
+
+    return {
+      'income': totalIncome,
+      'expenses': totalExpenses,
+      'balance': totalIncome - totalExpenses,
+      'count': transactions.length.toDouble(),
+    };
+  }
+
+  Future<Project?> getProjectById(String id) async {
+    final projects = await getProjects();
+    try {
+      return projects.firstWhere((p) => p.id == id);
+    } catch (e) {
+      return null;
+    }
   }
 }

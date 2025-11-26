@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart' as models;
+import '../models/project.dart';
 import '../services/app_localizations.dart';
 import '../services/currency_rate_service.dart';
-import '../data/categories.dart';
+import '../services/storage_service.dart';
+import '../models/transaction_filter.dart';
+import '../widgets/transaction_filter_dialog.dart';
+import 'edit_transaction_screen.dart';
 
 class TransactionsTab extends StatefulWidget {
   final List<models.Transaction> transactions;
@@ -28,18 +32,30 @@ class TransactionsTab extends StatefulWidget {
 }
 
 class _TransactionsTabState extends State<TransactionsTab> {
-  String _filterType = 'all';
+  TransactionFilter _filter = const TransactionFilter();
   String _sortBy = 'newest';
+  Map<String, Project> _projects = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    final storage = StorageService();
+    final projects = await storage.getProjects();
+    setState(() {
+      _projects = {for (var p in projects) p.id: p};
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
 
     // Filter and sort
-    var filteredTransactions = widget.transactions.where((t) {
-      if (_filterType == 'all') return true;
-      return t.type == _filterType;
-    }).toList();
+    var filteredTransactions = _filter.apply(widget.transactions);
 
     filteredTransactions.sort((a, b) {
       switch (_sortBy) {
@@ -64,34 +80,55 @@ class _TransactionsTabState extends State<TransactionsTab> {
             child: Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _filterType,
-                    decoration: InputDecoration(
-                      labelText: localizations.translate('filter'),
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'all',
-                        child: Text(localizations.translate('all')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'income',
-                        child: Text(localizations.translate('income')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'expense',
-                        child: Text(localizations.translate('expense')),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _filterType = value!;
-                      });
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => TransactionFilterDialog(
+                          initialFilter: _filter,
+                          projects: _projects.values.toList(),
+                          onApply: (filter) {
+                            setState(() => _filter = filter);
+                          },
+                        ),
+                      );
                     },
+                    icon: Icon(
+                      _filter.hasActiveFilters
+                          ? Icons.filter_list_alt
+                          : Icons.filter_list,
+                      color: _filter.hasActiveFilters
+                          ? Theme.of(context).primaryColor
+                          : null,
+                    ),
+                    label: Text(
+                      _filter.hasActiveFilters
+                          ? '${localizations.translate('filter')} (${_filter.activeFilterCount})'
+                          : localizations.translate('filter'),
+                      style: TextStyle(
+                        color: _filter.hasActiveFilters
+                            ? Theme.of(context).primaryColor
+                            : null,
+                        fontWeight: _filter.hasActiveFilters
+                            ? FontWeight.bold
+                            : null,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      side: _filter.hasActiveFilters
+                          ? BorderSide(
+                              color: Theme.of(context).primaryColor,
+                              width: 2,
+                            )
+                          : null,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _sortBy,
@@ -163,6 +200,21 @@ class _TransactionsTabState extends State<TransactionsTab> {
                         currency: widget.currency,
                         rates: widget.rates,
                         useParallel: widget.useParallel,
+                        project: _projects[transaction.projectId],
+                        onEdit: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditTransactionScreen(
+                                transaction: transaction,
+                                currency: widget.currency,
+                              ),
+                            ),
+                          );
+                          if (result != null && result is models.Transaction) {
+                            widget.onUpdate(result);
+                          }
+                        },
                         onDelete: () => widget.onDelete(transaction.id),
                       );
                     },
@@ -179,6 +231,8 @@ class _TransactionCard extends StatelessWidget {
   final String currency;
   final Map<String, Map<String, dynamic>> rates;
   final bool useParallel;
+  final Project? project;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _TransactionCard({
@@ -186,6 +240,8 @@ class _TransactionCard extends StatelessWidget {
     required this.currency,
     required this.rates,
     required this.useParallel,
+    this.project,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -193,10 +249,6 @@ class _TransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIncome = transaction.type == 'income';
     final color = isIncome ? Colors.green : Colors.red;
-    final category = Categories.getCategory(
-      transaction.categoryId,
-      transaction.type,
-    );
     final formatter = NumberFormat.currency(
       symbol: _getCurrencySymbol(currency),
     );
@@ -259,6 +311,50 @@ class _TransactionCard extends StatelessWidget {
                         context,
                       ).textTheme.bodySmall?.copyWith(color: Colors.grey),
                     ),
+                    // Project chip
+                    if (project != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Color(
+                                project!.colorValue,
+                              ).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Color(
+                                  project!.colorValue,
+                                ).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  project!.icon,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  project!.name,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(project!.colorValue),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -268,46 +364,34 @@ class _TransactionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${isIncome ? '+' : '-'}${formatter.format(convertedAmount)}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    '${isIncome ? '+' : '-'}${formatter.format(transaction.amount)}',
+                    style: TextStyle(
                       color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  IconButton(
-                    icon: const Icon(Icons.delete, size: 20),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete Transaction'),
-                          content: const Text(
-                            'Are you sure you want to delete this transaction?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                onDelete();
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Transaction deleted'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              },
-                              child: const Text('Delete'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    color: Colors.grey,
+                  if (transaction.currency != currency)
+                    Text(
+                      '${isIncome ? '+' : '-'}${formatter.format(convertedAmount)}',
+                      style: TextStyle(
+                        color: color.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        onPressed: onEdit,
+                        color: Colors.blue,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        onPressed: onDelete,
+                        color: Colors.red,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -318,18 +402,11 @@ class _TransactionCard extends StatelessWidget {
     );
   }
 
-  String _getCurrencySymbol(String currency) {
-    const Map<String, String> symbols = {
-      'USD': '\$',
-      'EUR': '€',
-      'GBP': '£',
-      'JPY': '¥',
-      'CNY': '¥',
-      'SAR': 'SR',
-      'AED': 'AED',
-      'CAD': 'C\$',
-      'AUD': 'A\$',
-    };
-    return symbols[currency] ?? currency;
+  String _getCurrencySymbol(String currencyCode) {
+    try {
+      return NumberFormat.simpleCurrency(name: currencyCode).currencySymbol;
+    } catch (_) {
+      return currencyCode;
+    }
   }
 }

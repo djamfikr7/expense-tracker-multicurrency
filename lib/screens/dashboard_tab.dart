@@ -26,7 +26,6 @@ class DashboardTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context);
     final now = DateTime.now();
-    final currentMonth = DateTime(now.year, now.month);
 
     // Filter transactions for current month
     final monthTransactions = transactions.where((t) {

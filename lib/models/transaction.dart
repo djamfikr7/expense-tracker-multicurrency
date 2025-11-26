@@ -11,6 +11,7 @@ class Transaction {
   final bool isRecurring;
   final String? frequency; // 'daily', 'weekly', 'monthly', 'yearly'
   final String currency;
+  final String? projectId; // Optional project assignment
 
   Transaction({
     required this.id,
@@ -25,6 +26,7 @@ class Transaction {
     this.isRecurring = false,
     this.frequency,
     this.currency = 'USD',
+    this.projectId, // Optional
   });
 
   Map<String, dynamic> toJson() {
@@ -41,6 +43,7 @@ class Transaction {
       'isRecurring': isRecurring,
       'frequency': frequency,
       'currency': currency,
+      'projectId': projectId,
     };
   }
 
@@ -58,6 +61,8 @@ class Transaction {
       isRecurring: json['isRecurring'] ?? false,
       frequency: json['frequency'],
       currency: json['currency'] ?? 'USD',
+      projectId:
+          json['projectId'], // Backward compatible - will be null for old data
     );
   }
 }
@@ -80,11 +85,22 @@ class Budget {
   final String id;
   final String categoryId;
   final double amount;
+  final String currency; // Added currency field
 
-  Budget({required this.id, required this.categoryId, required this.amount});
+  Budget({
+    required this.id,
+    required this.categoryId,
+    required this.amount,
+    this.currency = 'USD', // Default to USD for backward compatibility
+  });
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'categoryId': categoryId, 'amount': amount};
+    return {
+      'id': id,
+      'categoryId': categoryId,
+      'amount': amount,
+      'currency': currency,
+    };
   }
 
   factory Budget.fromJson(Map<String, dynamic> json) {
@@ -92,6 +108,7 @@ class Budget {
       id: json['id'],
       categoryId: json['categoryId'],
       amount: json['amount'].toDouble(),
+      currency: json['currency'] ?? 'USD', // Backward compatibility
     );
   }
 }

@@ -12,8 +12,14 @@ class CurrencyRateService {
   /// We only prioritize major international currencies and specific regional ones.
   static Future<Map<String, Map<String, double>>> fetchParallelRates() async {
     try {
-      // Fetch official rates from free API
-      final response = await http.get(Uri.parse(_exchangeRateApiUrl));
+      print('📡 Fetching rates from API...');
+
+      // Fetch official rates from free API with timeout
+      final response = await http
+          .get(Uri.parse(_exchangeRateApiUrl))
+          .timeout(const Duration(seconds: 10));
+
+      print('📥 API Response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -98,11 +104,15 @@ class CurrencyRateService {
         }
 
         return parallelRates;
+      } else {
+        print('❌ API error: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error fetching rates: $e');
+      print('❌ Error fetching rates: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
 
+    print('⚠️ Using default fallback rates');
     return {};
   }
 

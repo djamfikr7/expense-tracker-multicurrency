@@ -5,6 +5,7 @@ import '../models/transaction.dart' as models;
 import 'dashboard_tab.dart';
 import 'transactions_tab.dart';
 import 'budgets_tab.dart';
+import 'projects_tab.dart';
 import 'settings_tab.dart';
 import 'add_transaction_screen.dart';
 import 'calculator_screen.dart';
@@ -101,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currency: _currency,
         onAddBudget: _addBudget,
       ),
+      const ProjectsTab(),
       const CalculatorScreen(),
       SettingsTab(currency: _currency, onCurrencyChanged: _updateCurrency),
     ];
@@ -131,6 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
             label: localizations.translate('budgets'),
           ),
           NavigationDestination(
+            icon: const Icon(Icons.folder_outlined),
+            selectedIcon: const Icon(Icons.folder),
+            label: localizations.translate('projects'),
+          ),
+          NavigationDestination(
             icon: const Icon(Icons.calculate_outlined),
             selectedIcon: const Icon(Icons.calculate),
             label: localizations.translate('calculator'),
@@ -142,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: _currentIndex < 3
+      floatingActionButton: _currentIndex < 2
           ? FloatingActionButton.extended(
               onPressed: () async {
                 final result = await Navigator.push(
