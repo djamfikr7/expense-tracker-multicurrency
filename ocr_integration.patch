@@ -1,0 +1,226 @@
+# OCR Integration Patch for AddTransactionScreen
+# Apply these changes manually to: lib/screens/add_transaction_screen.dart
+
+## CHANGE 1: Add Camera Screen Import
+Location: After line 7 (after 'calculator_screen.dart')
+
+ADD:
+import 'camera_screen.dart';
+
+---
+
+## CHANGE 2: Add Description Controller & Receipt Fields
+Location: Line 25-26 (in _AddTransactionScreenState class)
+
+FIND:
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  String _type = 'expense';
+
+REPLACE WITH:
+  final _formKey = GlobalKey<FormState>();
+  final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _type = 'expense';
+  
+THEN ADD after line 33 (after "List<Project> _availableProjects = [];"):
+  
+  // Receipt/OCR fields
+  List<String> _receiptPhotoPaths = [];
+  String? _scannedReceiptId;
+  String? _receiptThumbnailPath;
+
+---
+
+## CHANGE 3: Add Scan Receipt Method
+Location: After _loadProjects() method (~line 48)
+
+ADD BEFORE dispose():
+  Future<void> _scanReceipt() async {
+    try {
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(builder: (context) => const CameraScreen()),
+      );
+      
+      if (result != null && mounted) {
+        setState(() {
+          // Auto-fill amount
+          if (result['amount'] != null && result['amount'].isNotEmpty) {
+            _amountController.text = result['amount'];
+          }
+          
+          // Auto-fill description with merchant
+          if (result['merchant'] != null && result['merchant'].isNotEmpty) {
+            _descriptionController.text = result['merchant'];
+          }
+          
+          // Store receipt paths
+          _receiptPhotoPaths = [result['receiptPath']];
+          _scannedReceiptId = result['scannedReceiptId'];
+          _receiptThumbnailPath = result['thumbnailPath'];
+        });
+        
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Receipt scanned! Please verify the details.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error scanning receipt: $e')),
+        );
+      }
+    }
+  }
+
+---
+
+## CHANGE 4: Update dispose() Method
+Location: dispose() method (~line 51-54)
+
+FIND:
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+REPLACE WITH:
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+---
+
+## CHANGE 5: Add Scan Receipt Button in UI
+Location: After the type toggle SegmentedButton (~line 145)
+
+FIND:
+              ),
+              const SizedBox(height: 24),
+
+              // Amount
+              TextFormField(
+
+ADD BETWEEN "const SizedBox(height: 24)," AND "// Amount":
+              
+              // Scan Receipt Button (only for expenses)
+              if (_type == 'expense')
+                OutlinedButton.icon(
+                  onPressed: _scanReceipt,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Scan Receipt'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                  ),
+                ),
+              if (_type == 'expense') const SizedBox(height: 16),
+
+---
+
+## CHANGE 6: Update Description Field to Use Controller
+Location: Description TextFormField (~line 269-277)
+
+FIND:
+              // Description
+              TextFormField(
+                decoration: InputDecoration(
+                  labelText: localizations.translate('description'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.description),
+                ),
+                maxLines: 3,
+                onSaved: (value) {
+                  _description = value;
+                },
+              ),
+
+REPLACE WITH:
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: localizations.translate('description'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.description),
+                ),
+                maxLines: 3,
+                onSaved: (value) {
+                  _description = value;
+                },
+              ),
+
+---
+
+## CHANGE 7: Pass Receipt Fields to Transaction
+Location: Transaction creation (~line 297-312)
+
+FIND:
+                    final transaction = models.Transaction(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      type: _type,
+                      amount: _amount!,
+                      categoryId: category.id,
+                      category: category.name,
+                      icon: category.icon,
+                      date: _date,
+                      description: _description,
+                      paymentMethod: _paymentMethod,
+                      currency: widget.currency,
+                      projectId: _projectId,
+                    );
+
+REPLACE WITH:
+                    final transaction = models.Transaction(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      type: _type,
+                      amount: _amount!,
+                      categoryId: category.id,
+                      category: category.name,
+                      icon: category.icon,
+                      date: _date,
+                      description: _description,
+                      paymentMethod: _paymentMethod,
+                      currency: widget.currency,
+                      projectId: _projectId,
+                      receiptPhotoPaths: _receiptPhotoPaths,
+                      scannedReceiptId: _scannedReceiptId,
+                      paymentProofStatus: _scannedReceiptId != null ? 'verified' : null,
+                    );
+
+---
+
+## SUMMARY OF CHANGES:
+1. ✅ Added camera_screen.dart import
+2. ✅ Added _descriptionController field
+3. ✅ Added receipt tracking fields (_receiptPhotoPaths, _scannedReceiptId, _receiptThumbnailPath)
+4. ✅ Added _scanReceipt() method for OCR workflow
+5. ✅ Updated dispose() to clean up _descriptionController
+6. ✅ Added "Scan Receipt" button (only visible for expenses)
+7. ✅ Updated description field to use controller (for auto-fill)
+8. ✅ Pass receipt fields when creating transaction
+
+## TESTING CHECKLIST:
+- [ ] App compiles without errors
+- [ ] "Scan Receipt" button appears for expenses
+- [ ] Button opens camera screen
+- [ ] OCR extracts amount and merchant
+- [ ] Form auto-fills with OCR data
+- [ ] Transaction saves with receipt reference
+- [ ] Receipt fields stored correctly
+
+## FILE LOCATIONS:
+- Target File: lib/screens/add_transaction_screen.dart
+- Camera Screen: lib/screens/camera_screen.dart (already created)
+- OCR Service: lib/services/ocr_service.dart (already created)
+- Transaction Model: lib/models/transaction.dart (already updated with receipt fields)
