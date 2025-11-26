@@ -5,6 +5,7 @@ import '../services/app_localizations.dart';
 import '../services/storage_service.dart';
 import '../data/categories.dart';
 import 'calculator_screen.dart';
+import 'camera_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final String currency;
@@ -23,6 +24,7 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
   String _type = 'expense';
   double? _amount;
   String? _categoryId;
@@ -31,6 +33,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _paymentMethod = 'cash';
   String? _projectId;
   List<Project> _availableProjects = [];
+
+  // Receipt/OCR fields
+  List<String> _receiptPhotoPaths = [];
+  String? _scannedReceiptId;
+  String? _receiptThumbnailPath;
 
   @override
   void initState() {
@@ -47,9 +54,54 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     });
   }
 
+  Future<void> _scanReceipt() async {
+    try {
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(builder: (context) => const CameraScreen()),
+      );
+
+      if (result != null && mounted) {
+        setState(() {
+          // Auto-fill amount
+          if (result['amount'] != null && result['amount'].isNotEmpty) {
+            _amountController.text = result['amount'];
+          }
+
+          // Auto-fill description with merchant
+          if (result['merchant'] != null && result['merchant'].isNotEmpty) {
+            _descriptionController.text = result['merchant'];
+          }
+
+          // Store receipt paths
+          _receiptPhotoPaths = [result['receiptPath']];
+          _scannedReceiptId = result['scannedReceiptId'];
+          _receiptThumbnailPath = result['thumbnailPath'];
+        });
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Receipt scanned! Please verify the details.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error scanning receipt: $e')));
+      }
+    }
+  }
+
   @override
   void dispose() {
     _amountController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -92,6 +144,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
               ),
               const SizedBox(height: 24),
+
+              // Scan Receipt Button (only for expenses)
+              if (_type == 'expense')
+                OutlinedButton.icon(
+                  onPressed: _scanReceipt,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Scan Receipt'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                  ),
+                ),
+              if (_type == 'expense') const SizedBox(height: 16),
 
               // Amount
               TextFormField(
@@ -239,6 +303,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
               // Description
               TextFormField(
+                controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: localizations.translate('description'),
                   border: const OutlineInputBorder(),
@@ -306,6 +371,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       paymentMethod: _paymentMethod,
                       currency: widget.currency,
                       projectId: _projectId,
+                      receiptPhotoPaths: _receiptPhotoPaths,
+                      scannedReceiptId: _scannedReceiptId,
+                      paymentProofStatus: _scannedReceiptId != null
+                          ? 'verified'
+                          : null,
                     );
 
                     Navigator.pop(context, transaction);

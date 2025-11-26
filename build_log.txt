@@ -1,0 +1,67 @@
+Running Gradle task 'assembleRelease'...                        
+Warning: Flutter support for your project's Kotlin version (1.9.24) will soon be dropped. Please upgrade your Kotlin version to a version of at least 2.1.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (C:\Users\me\Desktop\Projects\test001\calc\android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (C:\Users\me\Desktop\Projects\test001\calc\android/build.gradle) by the ext.kotlin_version property.
+
+Warning: The plugin flutter_plugin_android_lifecycle requires Android SDK version 36 or higher.
+For more information about build configuration, see https://flutter.dev/to/review-gradle-config.
+Warning: The plugin image_picker_android requires Android SDK version 36 or higher.
+For more information about build configuration, see https://flutter.dev/to/review-gradle-config.
+Your project is configured to compile against Android SDK 35, but the following plugin(s) require to be compiled against a higher Android SDK version:
+- flutter_plugin_android_lifecycle compiles against Android SDK 36
+- image_picker_android compiles against Android SDK 36
+Fix this issue by compiling against the highest Android SDK version (they are backward compatible).
+Add the following to C:\Users\me\Desktop\Projects\test001\calc\android\app\build.gradle.kts:
+
+    android {
+        compileSdk = 36
+        ...
+    }
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 8276 bytes (99.5% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+ERROR: Missing classes detected while running R8. Please add the missing classes or apply additional keep rules that are generated in C:\Users\me\Desktop\Projects\test001\calc\build\app\outputs\mapping\release\missing_rules.txt.
+ERROR: R8: Missing class com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions$Builder (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions$Builder (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions$Builder (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions$Builder (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+Missing class com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions (referenced from: com.google.mlkit.vision.text.TextRecognizer com.google_mlkit_text_recognition.TextRecognizer.initialize(io.flutter.plugin.common.MethodCall))
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':google_mlkit_commons:verifyReleaseResources'.
+> A failure occurred while executing com.android.build.gradle.tasks.VerifyLibraryResourcesTask$Action
+   > Android resource linking failed
+     ERROR: C:\Users\me\Desktop\Projects\test001\calc\build\google_mlkit_commons\intermediates\merged_res\release\mergeReleaseResources\values\values.xml:221: AAPT: error: resource android:attr/lStar not found.
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':app:minifyReleaseWithR8'.
+> A failure occurred while executing com.android.build.gradle.internal.tasks.R8Task$R8Runnable
+   > Compilation failed to complete
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 51s
+Running Gradle task 'assembleRelease'...                           51.4s
+Gradle task assembleRelease failed with exit code 1
